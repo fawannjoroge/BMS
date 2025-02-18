@@ -1,24 +1,32 @@
 
-To run the app using the command line(windows 10 powershell):
-    #create a virtual environment:
-    '''
-    python -m venv venv
-    '''
-    #activate the virtual environment:
-    '''
-    .\venv\Scripts\activate
-    '''
-    #install the required packages:
-    '''
-    pip install -r requirements.txt
-    '''
-    #run the app:
-    '''
-    python app.py
-    '''
-    #run the model:
-    '''
-    python model\lstm.py
-    '''
+# Running the App on Windows 10 PowerShell
 
-    #Thanks for your help!
+## Setting Up the Virtual Environment
+1. Create a virtual environment:
+    ```powershell
+    python -m venv venv
+    ```
+2. Activate the virtual environment:
+    ```powershell
+    .\venv\Scripts\activate
+    ```
+
+## Installing Dependencies
+3. Install the required packages:
+    ```powershell
+    pip install -r requirements.txt
+    ```
+
+## Running the Application
+4. Run the app:
+    ```powershell
+    python app.py
+    ```
+
+## Running the Model
+5. Run the model:
+    ```powershell
+    python model\lstm.py
+    ```
+
+Thanks for your help!
