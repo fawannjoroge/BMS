@@ -20,7 +20,7 @@
 ## Running the Application
 4. Run the app:
     ```powershell
-    python app.py
+    
     ```
 
 ## Running the Model
