@@ -30,7 +30,7 @@
     ```
 
 ## Data Preprocessing and Preparation
-6. cleaning:
+6. Cleaning:
     ```powershell
     python -m Preprocessing.preprocessing
     ```
