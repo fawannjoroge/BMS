@@ -1,11 +1,12 @@
+import os
 import logging
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from contextlib import contextmanager
 import time
+import joblib
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,8 +18,9 @@ def timer(description):
     elapsed = time.time() - start
     logger.info(f"{description} completed in {elapsed:.2f} seconds")
 
+import config
+
 def validate_config():
-    import config
     numeric_configs = ['time_steps', 'train_split', 'val_split', 'outlier_threshold']
     non_numeric_configs = ['data_path']
     
@@ -55,7 +57,7 @@ def process_chunk(chunk):
 
 def process_large_dataset(data_path, chunksize=10000):
     with open(data_path, encoding='cp1252') as f:
-        total_rows = sum(1 for _ in f) - 1  # subtract 1 for header
+        total_rows = sum(1 for _ in f) - 1
     chunks = pd.read_csv(data_path, chunksize=chunksize)
     for chunk in tqdm(chunks, total=total_rows // chunksize, desc="Processing chunks"):
         yield process_chunk(chunk)
@@ -90,23 +92,23 @@ with timer("Data cleaning"):
     df.dropna(inplace=True)
     logger.info("Missing values dropped.")
 
-    def remove_outliers(dataframe, columns, threshold=config.CONFIG['outlier_threshold']):
+    def remove_outliers(dataframe, columns, threshold):
+        df_filtered = dataframe.copy()
         for col in columns:
-            if not pd.api.types.is_numeric_dtype(dataframe[col]):
+            if not pd.api.types.is_numeric_dtype(df_filtered[col]):
                 logger.info(f"Skipping non-numeric column: {col}")
                 continue
-            Q1 = dataframe[col].quantile(0.25)
-            Q3 = dataframe[col].quantile(0.75)
+            median = df_filtered[col].median()
+            Q1 = df_filtered[col].quantile(0.25)
+            Q3 = df_filtered[col].quantile(0.75)
             IQR = Q3 - Q1
-            lower_bound = Q1 - threshold * IQR
-            upper_bound = Q3 + threshold * IQR
-            dataframe = dataframe[(dataframe[col] >= lower_bound) & (dataframe[col] <= upper_bound)]
-        return dataframe
+            df_filtered = df_filtered[abs(df_filtered[col] - median) <= threshold * IQR]
+        return df_filtered
 
     target_column = 'Remaining_Distance'
     feature_columns = [col for col in df.columns if col != target_column]
 
-    df = remove_outliers(df, feature_columns)
+    df = remove_outliers(df, feature_columns, config.CONFIG['outlier_threshold'])
     logger.info("Outliers removed.")
 logger.info("Data cleaning completed.")
 
@@ -147,7 +149,17 @@ print(f"X_train shape: {X_train.shape}")
 print(f"X_val shape: {X_val.shape}")
 print(f"X_test shape: {X_test.shape}")
 
-# Optionally, save the scalers for future use (e.g., with joblib)
-# import joblib
-# joblib.dump(scaler_features, 'scaler_features.pkl')
-# joblib.dump(scaler_target, 'scaler_target.pkl')
+output_dir = os.path.join(os.getcwd(), "data")
+os.makedirs(output_dir, exist_ok=True)
+
+np.save(os.path.join(output_dir, 'X_train.npy'), X_train)
+np.save(os.path.join(output_dir, 'y_train.npy'), y_train)
+np.save(os.path.join(output_dir, 'X_val.npy'), X_val)
+np.save(os.path.join(output_dir, 'y_val.npy'), y_val)
+np.save(os.path.join(output_dir, 'X_test.npy'), X_test)
+np.save(os.path.join(output_dir, 'y_test.npy'), y_test)
+logger.info(f"Preprocessed data saved in folder: {output_dir}")
+
+joblib.dump(scaler_features, os.path.join(output_dir, 'scaler_features.pkl'))
+joblib.dump(scaler_target, os.path.join(output_dir, 'scaler_target.pkl'))
+logger.info(f"Scalers saved in folder: {output_dir}")
