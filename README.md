@@ -1,5 +1,5 @@
 
-# Running the App on Windows 10 PowerShell
+# Running the App on Windows 11 PowerShell
 
 ## Setting Up the Virtual Environment
 1. Create a virtual environment:
@@ -17,16 +17,22 @@
     pip install -r requirements.txt
     ```
 
-## Running the Application
-4. Run the app:
+## Tests
+4. Unnitests:
     ```powershell
-    
+    python -m unittest discover -s tests
     ```
 
-## Running the Model
-5. Run the model:
+## Model LSTM layers
+5. Run the Architecture:
     ```powershell
     python model\lstm.py
+    ```
+
+## Data Preprocessing and Preparation
+6. cleaning:
+    ```powershell
+    python -m Preprocessing.preprocessing
     ```
 
 Thanks for your help!
