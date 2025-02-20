@@ -5,14 +5,14 @@ import numpy as np
 import os
 import joblib
 
-from Preprocessing.preprocessing import (
+from scripts.preprocessing import (
     validate_config, load_data, validate_dataframe, process_chunk,
     process_large_dataset, remove_outliers, create_sequences, timer
 )
 
 class TestPreprocessing(unittest.TestCase):
 
-    @patch('Preprocessing.preprocessing.config')
+    @patch('scripts.preprocessing.config')
     def test_validate_config(self, mock_config):
         mock_config.CONFIG = {
             'time_steps': 10,
@@ -26,7 +26,7 @@ class TestPreprocessing(unittest.TestCase):
         except Exception as e:
             self.fail(f"validate_config raised an exception {e}")
 
-    @patch('Preprocessing.preprocessing.pd.read_csv')
+    @patch('scripts.preprocessing.pd.read_csv')
     def test_load_data(self, mock_read_csv):
         mock_df = pd.DataFrame({'A': [1, 2], 'B': [3, 4]})
         mock_read_csv.return_value = mock_df
@@ -46,7 +46,7 @@ class TestPreprocessing(unittest.TestCase):
         processed_chunk = process_chunk(chunk)
         pd.testing.assert_frame_equal(processed_chunk, chunk)
 
-    @patch('Preprocessing.preprocessing.pd.read_csv')
+    @patch('scripts.preprocessing.pd.read_csv')
     @patch('builtins.open')
     def test_process_large_dataset(self, mock_open, mock_read_csv):
         mock_open.return_value.__enter__.return_value = MagicMock()
@@ -69,8 +69,8 @@ class TestPreprocessing(unittest.TestCase):
         self.assertTrue(np.array_equal(sequences[0][0], np.array([[1, 2], [3, 4]])))
         self.assertTrue(np.array_equal(sequences[0][1], np.array([3])))
 
-    @patch('Preprocessing.preprocessing.os.makedirs')
-    @patch('Preprocessing.preprocessing.np.save')
+    @patch('scripts.preprocessing.os.makedirs')
+    @patch('scripts.preprocessing.np.save')
     def test_save_processed_data(self, mock_save, mock_makedirs):
         X_train = np.array([[1, 2], [3, 4]])
         y_train = np.array([1, 2])
@@ -81,7 +81,7 @@ class TestPreprocessing(unittest.TestCase):
         mock_makedirs.assert_called_once_with(output_dir, exist_ok=True)
         self.assertEqual(mock_save.call_count, 2)
 
-    @patch('Preprocessing.preprocessing.joblib.dump')
+    @patch('scripts.preprocessing.joblib.dump')
     def test_save_scalers(self, mock_dump):
         scaler_features = MagicMock()
         scaler_target = MagicMock()
