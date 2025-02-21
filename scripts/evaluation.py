@@ -52,14 +52,20 @@ def load_model(config):
     return model
 
 def evaluate_model(model, X_test, y_test, scaler_target):
-    try:
-        y_pred = model.predict(X_test)
-        y_test_orig = scaler_target.inverse_transform(y_test)
-        y_pred_orig = scaler_target.inverse_transform(y_pred)
-    except (ValueError, TypeError) as e:
-        logger.error(f"Error during prediction/transformation: {e}")
-        raise
-    
+    y_pred = model.predict(X_test)
+    # Check if the target scaler is fitted; if not, skip inverse transformation.
+    if scaler_target is not None and hasattr(scaler_target, "scale_"):
+        try:
+            y_test_orig = scaler_target.inverse_transform(y_test)
+            y_pred_orig = scaler_target.inverse_transform(y_pred)
+        except Exception as e:
+            logger.error(f"Error during inverse transform: {e}")
+            raise e
+    else:
+        logger.info("Scaler target not fitted. Skipping inverse transform.")
+        y_test_orig = y_test
+        y_pred_orig = y_pred
+
     rmse = np.sqrt(mean_squared_error(y_test_orig, y_pred_orig))
     mae = mean_absolute_error(y_test_orig, y_pred_orig)
     logger.info(f"Test RMSE: {rmse:.2f}")

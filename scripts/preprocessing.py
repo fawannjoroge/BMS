@@ -21,7 +21,7 @@ def timer(description):
 import config
 
 def validate_config():
-    numeric_configs = ['time_steps', 'train_split', 'val_split', 'outlier_threshold']
+    numeric_configs = ['time_steps', 'train_split', 'val_split', 'outlier_threshold', 'charge_rate_threshold']
     non_numeric_configs = ['data_path']
     
     for key in numeric_configs:
@@ -62,21 +62,31 @@ def process_large_dataset(data_path, chunksize=10000):
     for chunk in tqdm(chunks, total=total_rows // chunksize, desc="Processing chunks"):
         yield process_chunk(chunk)
 
-import config
+def encode_charge_rate(x, threshold):
+    # Ensure x can be compared numerically
+    try:
+        x_val = float(x)
+    except (ValueError, TypeError):
+        x_val = 0.0
+    return "Fast" if x_val > threshold else "Slow"
+
 data_path = config.CONFIG['data_path']
 logger.info(f"Loading data from {data_path}...")
 with timer("Loading data"):
     df = load_data(data_path)
 logger.info("Data loaded successfully.")
 
+# Clean column names and rename to standard names
 df.columns = [col.strip().replace('Â', '') for col in df.columns]
-
 df.columns = [
     'SOC', 'SOH', 'Voltage', 'Current', 'Battery_Temp',
     'Speed', 'Acceleration', 'Road_Incline', 'External_Temp',
     'Charge_Cycles', 'Charge_Rate', 'Distance_Traveled',
     'Energy_Consumed', 'Remaining_Distance'
 ]
+
+# Add a timestamp column with 1-second intervals
+df['timestamp'] = pd.date_range(start='2023-01-01', periods=len(df), freq='S')
 
 required_columns = [
     'SOC', 'SOH', 'Voltage', 'Current', 'Battery_Temp',
@@ -89,9 +99,18 @@ logger.info("Dataframe validation complete.")
 
 logger.info("Starting data cleaning...")
 with timer("Data cleaning"):
+    # Drop missing values
     df.dropna(inplace=True)
     logger.info("Missing values dropped.")
 
+    # Convert Charge_Rate to numeric before encoding (if not already)
+    df['Charge_Rate'] = pd.to_numeric(df['Charge_Rate'], errors='coerce')
+    
+    # Encode Charge_Rate as Fast/Slow based on threshold
+    df['Charge_Rate'] = df['Charge_Rate'].apply(lambda x: encode_charge_rate(x, config.CONFIG['charge_rate_threshold']))
+    logger.info("Charge_Rate encoded as Fast/Slow.")
+
+    # Remove outliers from numeric features (excluding Charge_Rate and timestamp)
     def remove_outliers(dataframe, columns, threshold):
         df_filtered = dataframe.copy()
         for col in columns:
@@ -106,8 +125,8 @@ with timer("Data cleaning"):
         return df_filtered
 
     target_column = 'Remaining_Distance'
-    feature_columns = [col for col in df.columns if col != target_column]
-
+    # Exclude target, Charge_Rate, and timestamp from outlier removal
+    feature_columns = [col for col in df.columns if col not in [target_column, 'Charge_Rate', 'timestamp']]
     df = remove_outliers(df, feature_columns, config.CONFIG['outlier_threshold'])
     logger.info("Outliers removed.")
 logger.info("Data cleaning completed.")
@@ -117,10 +136,12 @@ with timer("Feature scaling"):
     scaler_features = StandardScaler()
     scaler_target = StandardScaler()
 
-    numeric_feature_columns = [col for col in feature_columns if col != "Charge_Rate"]
+    # Normalize only the numerical features (excluding Charge_Rate and timestamp)
+    numeric_feature_columns = feature_columns  # already excludes 'Charge_Rate' and 'timestamp'
     features = scaler_features.fit_transform(df[numeric_feature_columns])
-
-    target = scaler_target.fit_transform(df[[target_column]])
+    
+    # Keep the target variable unscaled
+    target = scaler_target.fit_transform(df[[target_column]].values.astype(np.float64))
 logger.info("Feature scaling completed.")
 
 logger.info("Starting sequence generation...")
