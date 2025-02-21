@@ -81,10 +81,16 @@ class TestTraining(unittest.TestCase):
     @patch('scripts.training.ModelCheckpoint')
     @patch('scripts.training.EarlyStopping')
     def test_train_model(self, mock_early_stopping, mock_checkpoint, mock_reduce_lr, mock_tensorboard):
-        mock_early_stopping.return_value = MagicMock()
-        mock_checkpoint.return_value = MagicMock()
-        mock_reduce_lr.return_value = MagicMock()
-        mock_tensorboard.return_value = MagicMock()
+        # Create mock callback instances.
+        mock_es_instance = MagicMock()
+        mock_cp_instance = MagicMock()
+        mock_rlr_instance = MagicMock()
+        mock_tb_instance = MagicMock()
+
+        mock_early_stopping.return_value = mock_es_instance
+        mock_checkpoint.return_value = mock_cp_instance
+        mock_reduce_lr.return_value = mock_rlr_instance
+        mock_tensorboard.return_value = mock_tb_instance
 
         mock_model = MagicMock()
         X_train = np.random.random((100, 30, 10))
@@ -93,12 +99,21 @@ class TestTraining(unittest.TestCase):
         y_val = np.random.random((20, 1))
 
         history = train_model(mock_model, X_train, y_train, X_val, y_val, self.test_config)
+        # Extract the callbacks passed to fit.
+        _, kwargs = mock_model.fit.call_args
+        callbacks_passed = kwargs.get('callbacks', [])
+        self.assertEqual(len(callbacks_passed), 4)
+        self.assertIn(mock_es_instance, callbacks_passed)
+        self.assertIn(mock_cp_instance, callbacks_passed)
+        self.assertIn(mock_rlr_instance, callbacks_passed)
+        self.assertIn(mock_tb_instance, callbacks_passed)
+        # Additionally, assert that fit was called with the expected parameters.
         mock_model.fit.assert_called_once_with(
             X_train, y_train,
             epochs=self.test_config['epochs'],
             batch_size=self.test_config['batch_size'],
             validation_data=(X_val, y_val),
-            callbacks=[mock_early_stopping(), mock_checkpoint(), mock_reduce_lr(), mock_tensorboard()],
+            callbacks=callbacks_passed,
             verbose=1
         )
 

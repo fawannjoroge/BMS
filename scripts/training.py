@@ -130,6 +130,7 @@ def save_model(model):
     logger.info(f"Final model saved to: {final_model_path}")
 
 def main():
+    validate_config(config.CONFIG)
     set_random_seeds()
     configure_gpu()
 
