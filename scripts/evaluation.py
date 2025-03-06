@@ -1,3 +1,4 @@
+# scripts/evaluation.py
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,7 +6,7 @@ import tensorflow as tf
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import joblib
 import logging
-from config import CONFIG
+import config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -127,12 +128,12 @@ def plot_errors(y_test_orig, y_pred_orig, config, figsize=(10, 6), dpi=300):
 def main():
     """Main function to evaluate the model."""
     try:
-        validate_config(CONFIG)
-        X_test, y_test, scaler_target = load_test_data(CONFIG)
-        model = load_model(CONFIG)
+        validate_config(config.CONFIG)
+        X_test, y_test, scaler_target = load_test_data(config.CONFIG)
+        model = load_model(config.CONFIG)
         y_test_orig, y_pred_orig, rmse, mae = evaluate_model(model, X_test, y_test, scaler_target)
-        plot_results(y_test_orig, y_pred_orig, CONFIG)
-        plot_errors(y_test_orig, y_pred_orig, CONFIG)
+        plot_results(y_test_orig, y_pred_orig, config.CONFIG)
+        plot_errors(y_test_orig, y_pred_orig, config.CONFIG)
     except Exception as e:
         logger.error(f"Evaluation failed: {e}")
         raise

@@ -7,6 +7,7 @@ from tqdm import tqdm
 from contextlib import contextmanager
 import time
 import joblib
+import config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

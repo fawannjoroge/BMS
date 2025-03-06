@@ -1,15 +1,21 @@
 import os
 
+# Base directory for the project
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
 CONFIG = {
-    # Data configuration
-    'data_path': 'rawData/predictive_bms_dataset.csv',
+    # Data configuration (for preprocessing)
+    'data_path': os.path.join(BASE_DIR, 'rawData', 'predictive_bms_dataset.csv'),
     'time_steps': 10,
     'train_split': 0.8,
     'val_split': 0.15,
     'outlier_threshold': 1.0,
-    "charge_rate_threshold": 0.5,
-    
-    # Training configuration
+
+    # Preprocessed data and scaler output (shared with evaluate)
+    'data_dir': os.path.join(BASE_DIR, 'data'),
+    'scaler_filename': 'scaler_target.pkl',
+
+    # Model training configuration (not used by preprocessing or evaluate yet)
     'epochs': 50,
     'batch_size': 32,
     'lstm_units': [128, 64, 32],
@@ -18,11 +24,7 @@ CONFIG = {
     'use_batchnorm': True,
     'learning_rate': 0.001,
 
-    
-    # Additional paths for preprocessed data, model saving, and plots
-    'preprocessed_data_dir': os.path.join(os.getcwd(), "data"),
-    'scaler_filename': "scaler_target.pkl",
-    'data_dir': os.path.join(os.getcwd(), "data"),
-    'final_model_filename': "final_model.h5",
-    'plot_save_dir': os.path.join(os.getcwd(), "plots")
+    # Evaluation configuration
+    'final_model_filename': 'final_model.h5',
+    'plot_save_dir': os.path.join(BASE_DIR, 'plots')
 }
