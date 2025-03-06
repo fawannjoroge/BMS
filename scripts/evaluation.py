@@ -1,4 +1,3 @@
-# scripts/evaluation.py
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,7 +16,7 @@ def validate_config(config):
     missing_keys = [key for key in required_keys if key not in config]
     if missing_keys:
         raise KeyError(f"Missing required configuration keys: {missing_keys}")
-    for key in config:
+    for key in required_keys:
         if not isinstance(config[key], str):
             raise TypeError(f"Config value for '{key}' must be a string")
 
@@ -53,7 +52,7 @@ def load_model(config):
     model_path = os.path.join(config['data_dir'], config['final_model_filename'])
     ensure_file_exists(model_path)
     try:
-        model = tf.keras.models.load_model(model_path)
+        model = tf.keras.models.load_model(model_path, compile=False)
         logger.info(f"Loaded model from: {model_path}")
         model.compile(optimizer='adam', loss='mae', metrics=['mae'])
         return model
