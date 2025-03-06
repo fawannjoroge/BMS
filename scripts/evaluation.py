@@ -1,3 +1,4 @@
+# scripts/evaluation.py
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,7 +31,6 @@ def ensure_file_exists(filepath):
 def load_test_data(config):
     """Load test data and target scaler."""
     data_dir = config['data_dir']
-    
     X_test_path = os.path.join(data_dir, "X_test.npy")
     y_test_path = os.path.join(data_dir, "y_test.npy")
     ensure_file_exists(X_test_path)
@@ -61,7 +61,7 @@ def load_model(config):
         raise
 
 def evaluate_model(model, X_test, y_test, scaler_target):
-    """Evaluate the model and compute metrics."""
+    """Evaluate the model and compute detailed metrics."""
     y_pred = model.predict(X_test, verbose=0)
     
     if y_test.ndim == 1:
@@ -81,28 +81,24 @@ def evaluate_model(model, X_test, y_test, scaler_target):
     
     rmse = np.sqrt(mean_squared_error(y_test_orig, y_pred_orig))
     mae = mean_absolute_error(y_test_orig, y_pred_orig)
-    logger.info(f"Test RMSE: {rmse:.4f} km")
-    logger.info(f"Test MAE: {mae:.4f} km")
     
-    return y_test_orig, y_pred_orig, rmse, mae
-
-def analyze_errors(y_test_orig, y_pred_orig):
-    """Analyze prediction errors for bias, symmetry, and outliers."""
     errors = y_pred_orig - y_test_orig
     mean_error = np.mean(errors)
     median_error = np.median(errors)
-    pos_errors = np.sum(errors > 0)
-    neg_errors = np.sum(errors < 0)
+    positive_errors = np.sum(errors > 0)
+    negative_errors = np.sum(errors < 0)
     std_error = np.std(errors)
-    outliers = errors[np.abs(errors) > 3 * std_error]
-
+    outliers = np.sum(np.abs(errors - mean_error) > 3 * std_error)  # Beyond ±3σ
+    
+    logger.info(f"Test RMSE: {rmse:.4f} km")
+    logger.info(f"Test MAE: {mae:.4f} km")
     logger.info(f"Mean Prediction Error: {mean_error:.6f} km")
     logger.info(f"Median Prediction Error: {median_error:.6f} km")
-    logger.info(f"Positive Errors: {pos_errors}, Negative Errors: {neg_errors}")
+    logger.info(f"Positive Errors: {positive_errors}, Negative Errors: {negative_errors}")
     logger.info(f"Standard Deviation of Errors: {std_error:.6f} km")
-    logger.info(f"Number of Outliers (beyond ±3σ): {len(outliers)}")
-
-    return errors, mean_error, median_error, std_error, len(outliers)
+    logger.info(f"Number of Outliers (beyond ±3σ): {outliers}")
+    
+    return y_test_orig, y_pred_orig, rmse, mae
 
 def plot_results(y_test_orig, y_pred_orig, config, figsize=(10, 6), dpi=300):
     """Plot actual vs predicted values."""
@@ -149,7 +145,6 @@ def main():
         X_test, y_test, scaler_target = load_test_data(config.CONFIG)
         model = load_model(config.CONFIG)
         y_test_orig, y_pred_orig, rmse, mae = evaluate_model(model, X_test, y_test, scaler_target)
-        analyze_errors(y_test_orig, y_pred_orig)
         plot_results(y_test_orig, y_pred_orig, config.CONFIG)
         plot_errors(y_test_orig, y_pred_orig, config.CONFIG)
     except Exception as e:
