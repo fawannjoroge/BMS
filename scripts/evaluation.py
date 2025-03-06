@@ -86,6 +86,24 @@ def evaluate_model(model, X_test, y_test, scaler_target):
     
     return y_test_orig, y_pred_orig, rmse, mae
 
+def analyze_errors(y_test_orig, y_pred_orig):
+    """Analyze prediction errors for bias, symmetry, and outliers."""
+    errors = y_pred_orig - y_test_orig
+    mean_error = np.mean(errors)
+    median_error = np.median(errors)
+    pos_errors = np.sum(errors > 0)
+    neg_errors = np.sum(errors < 0)
+    std_error = np.std(errors)
+    outliers = errors[np.abs(errors) > 3 * std_error]
+
+    logger.info(f"Mean Prediction Error: {mean_error:.6f} km")
+    logger.info(f"Median Prediction Error: {median_error:.6f} km")
+    logger.info(f"Positive Errors: {pos_errors}, Negative Errors: {neg_errors}")
+    logger.info(f"Standard Deviation of Errors: {std_error:.6f} km")
+    logger.info(f"Number of Outliers (beyond ±3σ): {len(outliers)}")
+
+    return errors, mean_error, median_error, std_error, len(outliers)
+
 def plot_results(y_test_orig, y_pred_orig, config, figsize=(10, 6), dpi=300):
     """Plot actual vs predicted values."""
     if len(y_test_orig) != len(y_pred_orig):
@@ -131,6 +149,7 @@ def main():
         X_test, y_test, scaler_target = load_test_data(config.CONFIG)
         model = load_model(config.CONFIG)
         y_test_orig, y_pred_orig, rmse, mae = evaluate_model(model, X_test, y_test, scaler_target)
+        analyze_errors(y_test_orig, y_pred_orig)
         plot_results(y_test_orig, y_pred_orig, config.CONFIG)
         plot_errors(y_test_orig, y_pred_orig, config.CONFIG)
     except Exception as e:
