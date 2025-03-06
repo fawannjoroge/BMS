@@ -2,7 +2,7 @@ import os
 import logging
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
 from contextlib import contextmanager
 import time
@@ -21,166 +21,132 @@ def timer(description):
 import config
 
 def validate_config():
-    numeric_configs = ['time_steps', 'train_split', 'val_split', 'outlier_threshold', 'charge_rate_threshold']
-    non_numeric_configs = ['data_path']
-    
-    for key in numeric_configs:
+    required_keys = {
+        'data_path': str,
+        'time_steps': int,
+        'train_split': float,
+        'val_split': float,
+        'outlier_threshold': float
+    }
+    for key, expected_type in required_keys.items():
         if key not in config.CONFIG:
             raise ValueError(f"Missing required config: {key}")
-        if not isinstance(config.CONFIG[key], (int, float)):
-            raise TypeError(f"Invalid type for config {key}")
-    for key in non_numeric_configs:
-        if key not in config.CONFIG:
-            raise ValueError(f"Missing required config: {key}")
-
-validate_config()
-logger.info("Configuration validated successfully.")
-
-logger.info("Starting data preprocessing...")
+        if not isinstance(config.CONFIG[key], expected_type):
+            raise TypeError(f"Config '{key}' must be of type {expected_type.__name__}")
+        if key in ['time_steps', 'outlier_threshold'] and config.CONFIG[key] <= 0:
+            raise ValueError(f"Config '{key}' must be positive")
+        if key in ['train_split', 'val_split'] and not (0 < config.CONFIG[key] < 1):
+            raise ValueError(f"Config '{key}' must be between 0 and 1")
+    if config.CONFIG['train_split'] + config.CONFIG['val_split'] >= 1:
+        raise ValueError("train_split + val_split must be less than 1")
 
 def load_data(data_path):
     try:
         df = pd.read_csv(data_path)
+        if df.empty:
+            raise ValueError("Dataset is empty")
+        return df
     except FileNotFoundError:
         raise FileNotFoundError(f"Data file not found at {data_path}")
-    if df.empty:
-        raise ValueError("Dataset is empty")
-    return df
+    except Exception as e:
+        raise ValueError(f"Error loading data: {str(e)}")
 
 def validate_dataframe(df, required_columns):
     missing_cols = [col for col in required_columns if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
-def process_chunk(chunk):
-    return chunk
+def remove_outliers(df, columns, threshold):
+    df_filtered = df.copy()
+    for col in columns:
+        Q1 = df_filtered[col].quantile(0.25)
+        Q3 = df_filtered[col].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - threshold * IQR
+        upper_bound = Q3 + threshold * IQR
+        df_filtered = df_filtered[
+            (df_filtered[col] >= lower_bound) & (df_filtered[col] <= upper_bound)
+        ]
+    return df_filtered
 
-def process_large_dataset(data_path, chunksize=10000):
-    with open(data_path, encoding='cp1252') as f:
-        total_rows = sum(1 for _ in f) - 1
-    chunks = pd.read_csv(data_path, chunksize=chunksize)
-    for chunk in tqdm(chunks, total=total_rows // chunksize, desc="Processing chunks"):
-        yield process_chunk(chunk)
+def create_sequences(data, time_steps):
+    X, y = [], []
+    for i in range(len(data) - time_steps):
+        X.append(data[i:i + time_steps, :-1])
+        y.append(data[i + time_steps, -1])
+    return np.array(X), np.array(y)
 
-def encode_charge_rate(x, threshold):
-    # Ensure x can be compared numerically
-    try:
-        x_val = float(x)
-    except (ValueError, TypeError):
-        x_val = 0.0
-    return "Fast" if x_val > threshold else "Slow"
+def preprocess_data():
+    validate_config()
+    logger.info("Configuration validated successfully.")
 
-data_path = config.CONFIG['data_path']
-logger.info(f"Loading data from {data_path}...")
-with timer("Loading data"):
-    df = load_data(data_path)
-logger.info("Data loaded successfully.")
+    data_path = config.CONFIG['data_path']
+    logger.info(f"Loading data from {data_path}...")
+    with timer("Loading data"):
+        df = load_data(data_path)
+    logger.info("Data loaded successfully.")
 
-# Clean column names and rename to standard names
-df.columns = [col.strip().replace('Â', '') for col in df.columns]
-df.columns = [
-    'SOC', 'SOH', 'Voltage', 'Current', 'Battery_Temp',
-    'Speed', 'Acceleration', 'Road_Incline', 'External_Temp',
-    'Charge_Cycles', 'Charge_Rate', 'Distance_Traveled',
-    'Energy_Consumed', 'Remaining_Distance'
-]
+    required_columns = ['time', 'voltage', 'current', 'temperature', 'speed', 'soc', 'range']
+    validate_dataframe(df, required_columns)
+    logger.info("Dataframe validation complete.")
 
-# Add a timestamp column with 1-second intervals
-df['timestamp'] = pd.date_range(start='2023-01-01', periods=len(df), freq='S')
+    df.columns = ['timestamp', 'Voltage', 'Current', 'Battery_Temp', 'Speed', 'SOC', 'Remaining_Distance']
 
-required_columns = [
-    'SOC', 'SOH', 'Voltage', 'Current', 'Battery_Temp',
-    'Speed', 'Acceleration', 'Road_Incline', 'External_Temp',
-    'Charge_Cycles', 'Charge_Rate', 'Distance_Traveled',
-    'Energy_Consumed', 'Remaining_Distance'
-]
-validate_dataframe(df, required_columns)
-logger.info("Dataframe validation complete.")
+    logger.info("Starting data cleaning...")
+    with timer("Data cleaning"):
+        initial_rows = len(df)
+        df.dropna(inplace=True)
+        logger.info(f"Dropped {initial_rows - len(df)} rows with missing values.")
 
-logger.info("Starting data cleaning...")
-with timer("Data cleaning"):
-    # Drop missing values
-    df.dropna(inplace=True)
-    logger.info("Missing values dropped.")
+        numeric_features = ['Voltage', 'Current', 'Battery_Temp', 'Speed', 'SOC']
+        initial_rows = len(df)
+        df = remove_outliers(df, numeric_features, config.CONFIG['outlier_threshold'])
+        logger.info(f"Removed {initial_rows - len(df)} rows with outliers.")
+    logger.info("Data cleaning completed.")
 
-    # Convert Charge_Rate to numeric before encoding (if not already)
-    df['Charge_Rate'] = pd.to_numeric(df['Charge_Rate'], errors='coerce')
-    
-    # Encode Charge_Rate as Fast/Slow based on threshold
-    df['Charge_Rate'] = df['Charge_Rate'].apply(lambda x: encode_charge_rate(x, config.CONFIG['charge_rate_threshold']))
-    logger.info("Charge_Rate encoded as Fast/Slow.")
+    logger.info("Starting feature scaling...")
+    with timer("Feature scaling"):
+        scaler_features = MinMaxScaler()
+        scaler_target = MinMaxScaler()
 
-    # Remove outliers from numeric features (excluding Charge_Rate and timestamp)
-    def remove_outliers(dataframe, columns, threshold):
-        df_filtered = dataframe.copy()
-        for col in columns:
-            if not pd.api.types.is_numeric_dtype(df_filtered[col]):
-                logger.info(f"Skipping non-numeric column: {col}")
-                continue
-            median = df_filtered[col].median()
-            Q1 = df_filtered[col].quantile(0.25)
-            Q3 = df_filtered[col].quantile(0.75)
-            IQR = Q3 - Q1
-            df_filtered = df_filtered[abs(df_filtered[col] - median) <= threshold * IQR]
-        return df_filtered
+        feature_columns = ['Voltage', 'Current', 'Battery_Temp', 'Speed', 'SOC']
+        features_scaled = scaler_features.fit_transform(df[feature_columns])
+        target_scaled = scaler_target.fit_transform(df[['Remaining_Distance']])
 
-    target_column = 'Remaining_Distance'
-    # Exclude target, Charge_Rate, and timestamp from outlier removal
-    feature_columns = [col for col in df.columns if col not in [target_column, 'Charge_Rate', 'timestamp']]
-    df = remove_outliers(df, feature_columns, config.CONFIG['outlier_threshold'])
-    logger.info("Outliers removed.")
-logger.info("Data cleaning completed.")
+        data_scaled = np.hstack((features_scaled, target_scaled))
+    logger.info("Feature scaling completed.")
 
-logger.info("Starting feature scaling...")
-with timer("Feature scaling"):
-    scaler_features = StandardScaler()
-    scaler_target = StandardScaler()
+    logger.info("Starting sequence generation...")
+    with timer("Sequence generation"):
+        time_steps = config.CONFIG['time_steps']
+        X, y = create_sequences(data_scaled, time_steps)
+        logger.debug(f"Created sequences with shape: {X.shape}, target shape: {y.shape}")
 
-    # Normalize only the numerical features (excluding Charge_Rate and timestamp)
-    numeric_feature_columns = feature_columns  # already excludes 'Charge_Rate' and 'timestamp'
-    features = scaler_features.fit_transform(df[numeric_feature_columns])
-    
-    # Keep the target variable unscaled
-    target = scaler_target.fit_transform(df[[target_column]].values.astype(np.float64))
-logger.info("Feature scaling completed.")
+    logger.info("Splitting data into training, validation, and test sets...")
+    with timer("Data splitting"):
+        train_size = int(len(X) * config.CONFIG['train_split'])
+        val_size = int(len(X) * config.CONFIG['val_split'])
+        test_size = len(X) - train_size - val_size
 
-logger.info("Starting sequence generation...")
-with timer("Sequence generation"):
-    def create_sequences(features, target, time_steps=config.CONFIG['time_steps']):
-        for i in range(len(features) - time_steps):
-            yield (features[i:i+time_steps], target[i+time_steps])
+        X_train, y_train = X[:train_size], y[:train_size]
+        X_val, y_val = X[train_size:train_size + val_size], y[train_size:train_size + val_size]
+        X_test, y_test = X[train_size + val_size:], y[train_size + val_size:]
 
-    sequences = list(create_sequences(features, target, time_steps=config.CONFIG['time_steps']))
-    X = np.array([seq[0] for seq in sequences])
-    y = np.array([seq[1] for seq in sequences])
-logger.debug(f"Created sequences with shape: {X.shape}")
+        logger.info(f"Training set shape: {X_train.shape}, Validation set shape: {X_val.shape}, "
+                    f"Test set shape: {X_test.shape}")
 
-logger.info("Splitting data into training, validation, and test sets...")
-with timer("Data splitting"):
-    train_size = int(len(X) * config.CONFIG['train_split'])
-    val_size = int(len(X) * config.CONFIG['val_split'])
+    output_dir = os.path.join(os.getcwd(), "data")
+    os.makedirs(output_dir, exist_ok=True)
 
-    X_train, y_train = X[:train_size], y[:train_size]
-    X_val, y_val = X[train_size:train_size+val_size], y[train_size:train_size+val_size]
-    X_test, y_test = X[train_size+val_size:], y[train_size+val_size:]
-logger.info(f"Data split complete: Training set shape: {X_train.shape}, "
-            f"Validation set shape: {X_val.shape}, Test set shape: {X_test.shape}")
+    np.save(os.path.join(output_dir, 'X_train.npy'), X_train)
+    np.save(os.path.join(output_dir, 'y_train.npy'), y_train)
+    np.save(os.path.join(output_dir, 'X_val.npy'), X_val)
+    np.save(os.path.join(output_dir, 'y_val.npy'), y_val)
+    np.save(os.path.join(output_dir, 'X_test.npy'), X_test)
+    np.save(os.path.join(output_dir, 'y_test.npy'), y_test)
+    joblib.dump(scaler_features, os.path.join(output_dir, 'scaler_features.pkl'))
+    joblib.dump(scaler_target, os.path.join(output_dir, 'scaler_target.pkl'))
+    logger.info(f"Preprocessed data and scalers saved in folder: {output_dir}")
 
-print(f"X_train shape: {X_train.shape}")
-print(f"X_val shape: {X_val.shape}")
-print(f"X_test shape: {X_test.shape}")
-
-output_dir = os.path.join(os.getcwd(), "data")
-os.makedirs(output_dir, exist_ok=True)
-
-np.save(os.path.join(output_dir, 'X_train.npy'), X_train)
-np.save(os.path.join(output_dir, 'y_train.npy'), y_train)
-np.save(os.path.join(output_dir, 'X_val.npy'), X_val)
-np.save(os.path.join(output_dir, 'y_val.npy'), y_val)
-np.save(os.path.join(output_dir, 'X_test.npy'), X_test)
-np.save(os.path.join(output_dir, 'y_test.npy'), y_test)
-logger.info(f"Preprocessed data saved in folder: {output_dir}")
-
-joblib.dump(scaler_features, os.path.join(output_dir, 'scaler_features.pkl'))
-joblib.dump(scaler_target, os.path.join(output_dir, 'scaler_target.pkl'))
-logger.info(f"Scalers saved in folder: {output_dir}")
+if __name__ == "__main__":
+    preprocess_data()
