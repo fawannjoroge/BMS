@@ -1,7 +1,7 @@
 import unittest
 import tensorflow as tf
 import numpy as np
-from model.lstm import create_lstm_model  # No CustomMeanAbsoluteError in revised model
+from model.lstm import create_lstm_model
 
 class TestLSTMModel(unittest.TestCase):
     def test_valid_model_creation(self):
@@ -86,11 +86,10 @@ class TestLSTMModelAdvanced(unittest.TestCase):
         input_shape = (20, 5)
         model = create_lstm_model(input_shape, lstm_units=[64, 32], dropout_rate=0.3)
         dropout_layers = [layer for layer in model.layers if isinstance(layer, tf.keras.layers.Dropout)]
-        self.assertEqual(len(dropout_layers), 1)  # Only one Dropout layer after LSTM stack
+        self.assertEqual(len(dropout_layers), 1)
         self.assertEqual(dropout_layers[0].rate, 0.3)
-        # Check LSTM dropout for final layer
         lstm_layers = [layer for layer in model.layers if isinstance(layer, tf.keras.layers.LSTM)]
-        self.assertEqual(lstm_layers[-1].dropout, 0.3)  # Dropout in final LSTM
+        self.assertEqual(lstm_layers[-1].dropout, 0.3)
 
     def test_model_prediction_shape(self):
         input_shape = (20, 5)
@@ -99,7 +98,6 @@ class TestLSTMModelAdvanced(unittest.TestCase):
         predictions = model.predict(test_input, verbose=0)
         self.assertEqual(predictions.shape, (3, 1))
 
-    # Removed test_custom_mae_with_sample_weights (CustomMeanAbsoluteError is gone)
 
 class TestLSTMModelExtended(unittest.TestCase):
     def test_model_with_large_lstm_units(self):
@@ -117,8 +115,7 @@ class TestLSTMModelExtended(unittest.TestCase):
         dropout_layers = [layer for layer in model.layers if isinstance(layer, tf.keras.layers.Dropout)]
         self.assertTrue(all(layer.rate == 0.0 for layer in dropout_layers))
         lstm_layers = [layer for layer in model.layers if isinstance(layer, tf.keras.layers.LSTM)]
-        self.assertEqual(lstm_layers[-1].dropout, 0.0)  # Check LSTM dropout
-
+        self.assertEqual(lstm_layers[-1].dropout, 0.0)
     def test_custom_learning_rate(self):
         input_shape = (20, 5)
         learning_rate = 0.0001
