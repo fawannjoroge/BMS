@@ -1,33 +1,21 @@
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, LSTM, Dense, Dropout, BatchNormalization, Bidirectional
-
-class CustomMeanAbsoluteError(tf.keras.metrics.Metric):
-    def __init__(self, name="mean_absolute_error", **kwargs):
-        super(CustomMeanAbsoluteError, self).__init__(name=name, **kwargs)
-        self._mae = tf.keras.metrics.MeanAbsoluteError()
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        self._mae.update_state(y_true, y_pred, sample_weight)
-
-    def result(self):
-        return self._mae.result()
-
-    def reset_states(self):
-        self._mae.reset_state()
-
-CustomMeanAbsoluteError.__name__ = "MeanAbsoluteError"
+from tensorflow.keras.layers import Input, LSTM, Dense, Dropout
 
 def create_lstm_model(
     input_shape,
     lstm_units=[64, 32],
     dropout_rate=0.2,
-    bidirectional=False,
-    use_batchnorm=True,
     learning_rate=0.001
 ):
     """
-    Create and compile an LSTM model with optional BatchNormalization and bidirectional LSTM layers.
+    Create and compile an LSTM model for regression tasks.
+    
+    Args:
+        input_shape (tuple): (time_steps, num_features)
+        lstm_units (list): Number of units in each LSTM layer
+        dropout_rate (float): Dropout rate for regularization
+        learning_rate (float): Learning rate for Adam optimizer
     """
     if not (
         isinstance(input_shape, tuple) and 
@@ -50,36 +38,29 @@ def create_lstm_model(
 
     for i, units in enumerate(lstm_units):
         return_sequences = (i < len(lstm_units) - 1)
-        lstm_layer = LSTM(units, return_sequences=return_sequences)
-        if bidirectional:
-            x = Bidirectional(lstm_layer)(x)
-        else:
-            x = lstm_layer(x)
-        
-        if use_batchnorm:
-            x = BatchNormalization()(x)
-        
-        if return_sequences:
-            x = Dropout(dropout_rate)(x)
-
+        x = LSTM(
+            units, 
+            return_sequences=return_sequences,
+            dropout=dropout_rate if not return_sequences else 0.0
+        )(x)
+    
     x = Dropout(dropout_rate)(x)
     outputs = Dense(1, activation='linear')(x)
-    model = Model(inputs=inputs, outputs=outputs)
     
-    mae_metric = CustomMeanAbsoluteError()
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate), 
-                  loss='mse', 
-                  metrics=[mae_metric])
+    model = Model(inputs=inputs, outputs=outputs)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+        loss='mae', 
+        metrics=['mae']
+    )
     return model
 
 if __name__ == "__main__":
-    dummy_input_shape = (50, 13)
+    input_shape = (50, 5)
     model = create_lstm_model(
-        dummy_input_shape,
-        lstm_units=[128, 64, 32],
-        dropout_rate=0.3,
-        bidirectional=True,
-        use_batchnorm=True,
+        input_shape,
+        lstm_units=[64, 32],
+        dropout_rate=0.2,
         learning_rate=0.001
     )
     model.summary()
