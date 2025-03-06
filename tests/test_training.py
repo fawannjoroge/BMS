@@ -9,7 +9,6 @@ from scripts.training import (
 
 class TestTraining(unittest.TestCase):
     def setUp(self):
-        # Updated test config to include required keys and remove unused ones.
         self.test_config = {
             'data_dir': 'dummy/dir',
             'lstm_units': [64, 32],
@@ -50,7 +49,6 @@ class TestTraining(unittest.TestCase):
         mock_create_model.return_value = mock_model
         input_shape = (30, 10)
         model = build_model(input_shape, self.test_config)
-        # Assert that create_lstm_model is called with the parameters used in the training code.
         mock_create_model.assert_called_once_with(
             input_shape=input_shape,
             lstm_units=self.test_config['lstm_units'],
@@ -80,7 +78,6 @@ class TestTraining(unittest.TestCase):
     @patch('scripts.training.ModelCheckpoint')
     @patch('scripts.training.EarlyStopping')
     def test_train_model(self, mock_early_stopping, mock_checkpoint, mock_reduce_lr, mock_tensorboard):
-        # Create mock callback instances.
         mock_es_instance = MagicMock()
         mock_cp_instance = MagicMock()
         mock_rlr_instance = MagicMock()
@@ -98,7 +95,6 @@ class TestTraining(unittest.TestCase):
         y_val = np.random.random((20, 1))
 
         history = train_model(mock_model, X_train, y_train, X_val, y_val, self.test_config)
-        # Extract the callbacks passed to fit.
         _, kwargs = mock_model.fit.call_args
         callbacks_passed = kwargs.get('callbacks', [])
         self.assertEqual(len(callbacks_passed), 4)
