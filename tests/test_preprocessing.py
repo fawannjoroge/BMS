@@ -29,11 +29,9 @@ class TestPreprocessing(unittest.TestCase):
 
     @patch('scripts.preprocessing.config')
     def test_validate_config_invalid(self, mock_config):
-        # Test missing key
         mock_config.CONFIG = {'time_steps': 10, 'train_split': 0.7}
         with self.assertRaises(ValueError):
             validate_config()
-        # Test invalid type
         mock_config.CONFIG = {
             'data_path': 'dummy_path.csv',
             'time_steps': '10',
@@ -43,7 +41,6 @@ class TestPreprocessing(unittest.TestCase):
         }
         with self.assertRaises(TypeError):
             validate_config()
-        # Test invalid range
         mock_config.CONFIG = {
             'data_path': 'dummy_path.csv',
             'time_steps': 10,
@@ -108,8 +105,8 @@ class TestPreprocessing(unittest.TestCase):
 
     def test_remove_outliers(self):
         df = pd.DataFrame({
-            'Voltage': [12.5, 12.6, 12.7, 12.8, 20.0],  # 20.0 is a clear outlier
-            'Current': [0.1, 0.2, 0.3, 0.4, 10.0]      # 10.0 is a clear outlier
+            'Voltage': [12.5, 12.6, 12.7, 12.8, 20.0],
+            'Current': [0.1, 0.2, 0.3, 0.4, 10.0]
         })
         cleaned_df = remove_outliers(df, ['Voltage', 'Current'], threshold=1.5)
         expected_df = pd.DataFrame({
@@ -159,7 +156,7 @@ class TestPreprocessing(unittest.TestCase):
                 mock_read_csv.return_value = mock_df
                 from scripts.preprocessing import preprocess_data
                 preprocess_data()
-                self.assertEqual(mock_save.call_count, 6)  # 6 saves for X/y train/val/test
-                self.assertEqual(mock_dump.call_count, 2)  # 2 scaler dumps
+                self.assertEqual(mock_save.call_count, 6)
+                self.assertEqual(mock_dump.call_count, 2)
 if __name__ == '__main__':
     unittest.main()
