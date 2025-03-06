@@ -8,7 +8,6 @@ import gc
 import config
 from model.lstm import create_lstm_model
 
-# Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -71,7 +70,6 @@ def load_data(cfg):
     logger.info("Loaded X_train with shape: %s, y_train shape: %s", X_train.shape, y_train.shape)
     logger.info("Loaded X_val with shape: %s, y_val shape: %s", X_val.shape, y_val.shape)
 
-    # Clear memory
     gc.collect()
     tf.keras.backend.clear_session()
 
@@ -145,7 +143,6 @@ def main():
 
         X_train, y_train, X_val, y_val = load_data(config.CONFIG)
 
-        # Validate input shapes
         if X_train.shape[0] == 0 or X_val.shape[0] == 0:
             raise ValueError("Training or validation data is empty")
         time_steps, num_features = X_train.shape[1], X_train.shape[2]
