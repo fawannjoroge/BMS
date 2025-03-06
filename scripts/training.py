@@ -93,7 +93,7 @@ def train_model(model, X_train, y_train, X_val, y_val, cfg):
     callbacks = [
         EarlyStopping(
             monitor='val_loss',
-            patience=10,  # Increased patience for better training
+            patience=10,
             restore_best_weights=True,
             verbose=1
         ),

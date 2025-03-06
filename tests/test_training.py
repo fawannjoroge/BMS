@@ -106,7 +106,6 @@ class TestTraining(unittest.TestCase):
         self.assertIn(mock_cp_instance, callbacks_passed)
         self.assertIn(mock_rlr_instance, callbacks_passed)
         self.assertIn(mock_tb_instance, callbacks_passed)
-        # Additionally, assert that fit was called with the expected parameters.
         mock_model.fit.assert_called_once_with(
             X_train, y_train,
             epochs=self.test_config['epochs'],
