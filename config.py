@@ -5,10 +5,10 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 CONFIG = {
     # Data configuration (for preprocessing)
-    'data_path': os.path.join(BASE_DIR, 'rawData', 'predictive_bms_dataset.csv'),
+    'data_path': os.path.join(BASE_DIR, 'rawData', 'range_updated.csv'),
     'time_steps': 10,
     'train_split': 0.8,
-    'val_split': 0.15,
+    'val_split': 0.05,
     'outlier_threshold': 1.0,
 
     # Preprocessed data and scaler output (shared with evaluate)
