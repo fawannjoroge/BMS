@@ -5,7 +5,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 CONFIG = {
     # Data configuration (for preprocessing)
-    'data_path': os.path.join(BASE_DIR, 'rawData', 'range_updated.csv'),
+    'data_path': os.path.join(BASE_DIR, 'rawData', 'predictive_bms_dataset.csv'),
     'time_steps': 10,
     'train_split': 0.8,
     'val_split': 0.05,
@@ -25,6 +25,7 @@ CONFIG = {
     'learning_rate': 0.001,
 
     # Evaluation configuration
-    'final_model_filename': 'final_model.h5',
+    #'final_model_filename': 'final_model.h5',
+    'final_model_filename': os.path.join(BASE_DIR, 'data', 'final_model.h5'),
     'plot_save_dir': os.path.join(BASE_DIR, 'plots')
 }

@@ -87,7 +87,7 @@ def evaluate_model(model, X_test, y_test, scaler_target):
     positive_errors = np.sum(errors > 0)
     negative_errors = np.sum(errors < 0)
     std_error = np.std(errors)
-    outliers = np.sum(np.abs(errors - mean_error) > 3 * std_error)  # Beyond ±3σ
+    outliers = np.sum(np.abs(errors - mean_error) > 3 * std_error)  
     
     logger.info(f"Test RMSE: {rmse:.4f} km")
     logger.info(f"Test MAE: {mae:.4f} km")
