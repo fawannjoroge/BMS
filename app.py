@@ -35,4 +35,4 @@ def predict():
         print(f"Error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=CONFIG.get('port', 5000), debug=CONFIG.get('debug', False))
+    app.run(host='0.0.0.0', port=CONFIG.get('port', 5000), debug=CONFIG.get('debug', True))
